@@ -3,4 +3,5 @@ __pycache__/
 *.npy
 dataset/
 .env
+venv/
 face_env/
