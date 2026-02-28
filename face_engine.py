@@ -1,109 +1,3 @@
-
-# import cv2
-# import numpy as np
-# import onnxruntime as ort
-# from numpy.linalg import norm
-
-
-# class FaceEngine:
-#     def __init__(self):
-
-#         # ===== Load ONNX model =====
-#         self.session = ort.InferenceSession("w600k_mbf.onnx", providers=["CPUExecutionProvider"])
-
-#         self.input_name = self.session.get_inputs()[0].name
-
-#         # ===== Load database =====
-#         self.known_embeddings = np.load("embeddings.npy")
-#         self.known_labels = np.load("labels.npy")
-
-#         # ===== Haar detector =====
-#         self.face_cascade = cv2.CascadeClassifier(
-#             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-#         )
-
-#         self.frame_count = 0
-#         self.last_names = []
-#         self.last_faces = []
-
-#     def cosine_similarity(self, a, b):
-#         return np.dot(a, b) / (norm(a) * norm(b))
-
-#     def recognize(self, embedding, threshold=0.6):
-#         best_score = -1
-#         best_label = "Unknown"
-
-#         for i, known_embedding in enumerate(self.known_embeddings):
-#             score = self.cosine_similarity(embedding, known_embedding)
-
-#             if score > best_score:
-#                 best_score = score
-#                 best_label = self.known_labels[i]
-#                 print("Best score:", best_score)
-
-#         if best_score < threshold:
-#             return "Unknown"
-
-#         return best_label
-
-#     def get_embedding(self, face_img):
-#         # Resize 112x112 (MobileFaceNet chuẩn này)
-#         face = cv2.resize(face_img, (112, 112))
-#         face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-
-#         face = face.astype(np.float32) / 255.0
-#         face = (face - 0.5) / 0.5  # normalize [-1,1]
-
-#         face = np.transpose(face, (2, 0, 1))  # HWC -> CHW
-#         face = np.expand_dims(face, axis=0)
-
-#         embedding = self.session.run(None, {self.input_name: face})[0][0]
-
-#         return embedding
-
-#     def process_frame(self, frame):
-
-#         # Resize nhỏ để tăng tốc
-#         frame_small = cv2.resize(frame, (480, 360))
-#         gray = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
-
-#         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
-
-#         self.frame_count += 1
-
-#         # Chỉ chạy embedding mỗi 3 frame
-#         if self.frame_count % 1 == 0:
-#             self.last_names = []
-#             self.last_faces = faces
-
-#             for (x, y, w, h) in faces:
-#                 padding = 20
-#                 x1 = max(x - padding, 0)
-#                 y1 = max(y - padding, 0)
-#                 x2 = min(x + w + padding, frame_small.shape[1])
-#                 y2 = min(y + h + padding, frame_small.shape[0])
-
-#                 face_crop = frame_small[y1:y2, x1:x2]
-
-#                 embedding = self.get_embedding(face_crop)
-#                 name = self.recognize(embedding)
-
-#                 self.last_names.append(name)
-
-#         # Vẽ bounding box
-#         for i, (x, y, w, h) in enumerate(faces):
-
-#             # name = "Unknown"
-
-#             if i < len(self.last_names):
-#                 name = self.last_names[i]
-
-#             cv2.rectangle(frame_small, (x, y), (x+w, y+h), (0,255,0), 2)
-#             # cv2.putText(frame_small, name, (x, y-10),
-#             #             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
-
-#         return frame_small, (self.last_names[0] if self.last_names else "")
-
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -154,7 +48,7 @@ class FaceEngine:
 
         for doc in self.collection.find():
 
-            name = doc["name"]
+            name = doc["Name"]
 
             # embeddings dạng 2D (ví dụ 5x512)
             embeddings_2d = np.array(doc["embeddings"], dtype=np.float32)

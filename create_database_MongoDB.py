@@ -77,7 +77,7 @@ for person_name in os.listdir(dataset_path):
         continue
 
     collection.insert_one({
-        "name": person_name,
+        "IDCard": person_name,
         "embeddings": person_embeddings,  # ⭐ mảng 2 chiều
         "created_at": datetime.utcnow()
     })
