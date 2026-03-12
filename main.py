@@ -1,8 +1,8 @@
-
 import sys
 import cv2
 from datetime import datetime
 import time
+import serial
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 
 from PyQt6.QtWidgets import (
@@ -13,7 +13,37 @@ from PyQt6.QtGui import QImage, QPixmap, QFont
 from PyQt6.QtCore import Qt
 from face_engine import FaceEngine
 
+class SerialThread(QThread):
 
+    data_signal = pyqtSignal(str)
+
+    def __init__(self, port="/dev/ttyUSB0", baud=115200):
+        super().__init__()
+        self.port = port
+        self.baud = baud
+        self.running = True
+
+    def run(self):
+
+        try:
+            ser = serial.Serial(self.port, self.baud, timeout=1)
+            print("Serial opened:", self.port)
+
+        except Exception as e:
+            print("Không mở được Serial:", e)
+            return
+
+        while self.running:
+            if ser.in_waiting:
+                line = ser.readline().decode().strip()
+                self.data_signal.emit(line)
+                time.sleep(0.01)
+        ser.close()
+
+    def stop(self):
+        self.running = False
+        self.quit()
+        self.wait()
 # ===== Thread camera + recognition =====
 class CameraThread(QThread):
     frame_signal = pyqtSignal(object, str, float)   # frame, name, fps
@@ -22,6 +52,8 @@ class CameraThread(QThread):
         super().__init__()
         self.engine = FaceEngine()
         self.running = True
+        self.enable_recognition = True
+        self.prev_time = time.time()
 
     def run(self):
         cap = cv2.VideoCapture(0)
@@ -32,13 +64,16 @@ class CameraThread(QThread):
 
         while self.running:
             ret, frame = cap.read()
+            now = time.time()
+            fps = int(1 / max(now - self.prev_time, 0.001))
+            self.prev_time = now
             if ret:
+                frame = cv2.resize(frame, (640, 480))
                 start_time = time.time()
-
-                frame, name = self.engine.process_frame(frame)
-
-                end_time = time.time()
-                fps = 1 / (end_time - start_time)
+                if self.enable_recognition:
+                    frame, name = self.engine.process_frame(frame)
+                else:
+                    name = ""
 
                 self.frame_signal.emit(frame, name, fps)
 
@@ -58,6 +93,14 @@ class App(QWidget):
         self.current_name = None
         self.current_detect_time = 0
         self.hold_duration = 3
+        self.mode = "A"
+
+        self.rfid_wait = None
+        self.rfid_time = 0
+        self.rfid_window = 1
+        self.serial_thread = SerialThread("/dev/ttyUSB0", 115200)
+        self.serial_thread.data_signal.connect(self.handle_serial)
+        self.serial_thread.start()
 
         self.setWindowTitle("Attendance System")
         self.resize(1100, 650)
@@ -131,11 +174,13 @@ class App(QWidget):
 
         # ===== THREAD =====
         self.thread = CameraThread()
+        self.thread.enable_recognition = False
+        self.users = self.thread.engine.db.load_users()
         self.thread.frame_signal.connect(self.update_ui)
         self.thread.start()
 
     def update_ui(self, frame, name, fps):
-
+        now = time.time()
         # ===== Hiển thị camera =====
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
@@ -158,23 +203,47 @@ class App(QWidget):
         )
 
         self.image_label.setPixmap(scaled_pixmap)
-        self.fps_label.setText(f"FPS: {fps:.2f}")
+        self.fps_label.setText(f"FPS: {fps}")
 
         now = time.time()
 
         # ===== Nếu detect hợp lệ =====
         if name and name != "Unknown":
 
-            if name != self.current_name:
-                self.current_name = name
-                self.current_detect_time = now
-            else:
-                self.current_detect_time = now
+            if self.mode == "B":
 
-        else:
-            if self.current_name and (now - self.current_detect_time > self.hold_duration):
-                self.current_name = None
+                if name != self.current_name:
+                    self.current_name = name
+                    self.current_detect_time = now
+                else:
+                    self.current_detect_time = now
 
+            elif self.mode == "A":
+
+                if self.rfid_wait and (now - self.rfid_time <= self.rfid_window):
+
+                    user = self.thread.engine.users.get(name)
+
+                    if user and user["RFID"] == self.rfid_wait:
+
+                        self.current_name = user["Name"]
+                        self.current_detect_time = now
+                        print("Attendance success")
+
+                    else:
+                        print("RFID mismatch")
+
+                    self.rfid_wait = None
+                    self.thread.enable_recognition = False
+            if self.mode == "A":
+
+                if self.rfid_wait and (now - self.rfid_time > self.rfid_window):
+
+                    self.rfid_wait = None
+                    self.thread.enable_recognition = False
+        # reset sau 3 giây
+        if self.current_name and (now - self.current_detect_time > self.hold_duration):
+            self.current_name = None
         # ===== Update UI text =====
         if self.current_name:
             self.name_label.setText(f"TÊN: {self.current_name}")
@@ -196,6 +265,27 @@ class App(QWidget):
     def closeEvent(self, event):
         self.thread.stop()
         event.accept()
+    def handle_serial(self, data):
+        print("Serial:", data)
+
+        if data == "modeA":
+            self.mode = "A"
+            self.thread.enable_recognition = True
+            print("MODE A")
+
+        elif data == "modeB":
+            self.mode = "B"
+            self.thread.enable_recognition = False
+            print("MODE B")
+
+        elif data.startswith("rfid:"):
+
+            rfid = data.split(":")[1]
+
+            self.rfid_wait = rfid
+            self.rfid_time = time.time()
+
+            self.thread.enable_recognition = True
 
 
 # ===== Main =====

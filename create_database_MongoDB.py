@@ -8,9 +8,9 @@ from datetime import datetime
 # =============================
 # MongoDB
 # =============================
-client = MongoClient("mongodb://localhost:27017/")
-db = client["face_recognition"]
-collection = db["faces"]
+client = MongoClient("mongodb+srv://nguyentuandatntd2k2:Datnguyen37@shop.l7tkp.mongodb.net/faceid")
+db = client["faceid"]
+collection = db["students"]
 
 # Xóa DB cũ nếu muốn
 collection.delete_many({})

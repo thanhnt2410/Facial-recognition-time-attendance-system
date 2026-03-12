@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 from numpy.linalg import norm
-from pymongo import MongoClient
+from database import MongoDB   # <-- thêm dòng này
 
 
 class FaceEngine:
@@ -16,9 +16,8 @@ class FaceEngine:
         self.input_name = self.session.get_inputs()[0].name
 
         # ===== Connect MongoDB =====
-        self.client = MongoClient("mongodb://localhost:27017/")
-        self.db = self.client["face_recognition"]
-        self.collection = self.db["faces"]
+        self.db = MongoDB()
+        self.users = self.db.load_users()
 
         # ===== Load embeddings từ DB =====
         self.known_embeddings = []
@@ -46,9 +45,9 @@ class FaceEngine:
         self.known_embeddings = []
         self.known_labels = []
 
-        for doc in self.collection.find():
+        for doc in self.db.get_all_embeddings():
 
-            name = doc["Name"]
+            name = doc["IDCard"]
 
             # embeddings dạng 2D (ví dụ 5x512)
             embeddings_2d = np.array(doc["embeddings"], dtype=np.float32)
@@ -67,7 +66,7 @@ class FaceEngine:
         return np.dot(a, b) / (norm(a) * norm(b))
 
     # ============================
-    def recognize(self, embedding, threshold=0.6):
+    def recognize(self, embedding, threshold=0.5):
 
         if len(self.known_embeddings) == 0:
             return "Unknown"
