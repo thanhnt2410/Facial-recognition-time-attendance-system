@@ -3,6 +3,8 @@ import cv2
 from datetime import datetime
 import time
 import serial
+import os
+import serial.tools.list_ports
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 
 from PyQt6.QtWidgets import (
@@ -22,6 +24,9 @@ class SerialThread(QThread):
         self.port = port
         self.baud = baud
         self.running = True
+        port1 = self.find_esp32_port()
+        if port1:
+            self.port = port1
 
     def run(self):
 
@@ -39,6 +44,15 @@ class SerialThread(QThread):
                 self.data_signal.emit(line)
                 time.sleep(0.01)
         ser.close()
+    def find_esp32_port(self):
+        ports = serial.tools.list_ports.comports()
+
+        for port in ports:
+            if "USB" in port.description or "CP210" in port.description or "CH340" in port.description:
+                print("ESP32 found:", port.device)
+                return port.device
+
+        return None
 
     def stop(self):
         self.running = False
@@ -54,9 +68,24 @@ class CameraThread(QThread):
         self.running = True
         self.enable_recognition = True
         self.prev_time = time.time()
+    def find_usb_camera(self):
+        for dev in os.listdir("/dev"):
+            if dev.startswith("video"):
+                path = f"/dev/{dev}"
+                cap = cv2.VideoCapture(path)
+                if cap.isOpened():
+                    print("Camera found:", path)
+                    cap.release()
+                    return path
+        return None
 
     def run(self):
-        cap = cv2.VideoCapture(0)
+        cam_index = self.find_usb_camera()
+        if cam_index:
+            print("Using camera:", cam_index)
+            cap = cv2.VideoCapture(cam_index)
+        else:
+            cap = cv2.VideoCapture("/dev/video0")
 
         if not cap.isOpened():
             print("Không mở được camera")
@@ -149,6 +178,9 @@ class App(QWidget):
         self.time_label = QLabel("🕒 THỜI GIAN: --:--:--")
         self.status_label = QLabel("📌 TRẠNG THÁI: ĐANG CHỜ")
         self.fps_label = QLabel("⚡ FPS: 0")
+        self.mode_label = QLabel("Chế độ điểm danh: --")
+        self.mode_label.setFont(QFont("Arial", 28))
+        self.mode_label.setStyleSheet("color: #00ffcc;")
 
         font_big = QFont("Arial", 28, QFont.Weight.Bold)
 
@@ -168,6 +200,8 @@ class App(QWidget):
 
         info_frame.setLayout(info_layout)
         body_layout.addWidget(info_frame, 1)
+
+        info_layout.addWidget(self.mode_label)
 
         main_layout.addLayout(body_layout)
         self.setLayout(main_layout)
@@ -210,10 +244,18 @@ class App(QWidget):
         # ===== Nếu detect hợp lệ =====
         if name and name != "Unknown":
 
+            idcard = name
+            user = self.users.get(idcard)
+
+            if not user:
+                return
+
+            display_name = user["Name"]
+
             if self.mode == "B":
 
-                if name != self.current_name:
-                    self.current_name = name
+                if display_name != self.current_name:
+                    self.current_name = display_name
                     self.current_detect_time = now
                 else:
                     self.current_detect_time = now
@@ -222,11 +264,9 @@ class App(QWidget):
 
                 if self.rfid_wait and (now - self.rfid_time <= self.rfid_window):
 
-                    user = self.thread.engine.users.get(name)
+                    if user["RFID"] == self.rfid_wait:
 
-                    if user and user["RFID"] == self.rfid_wait:
-
-                        self.current_name = user["Name"]
+                        self.current_name = display_name
                         self.current_detect_time = now
                         print("Attendance success")
 
@@ -235,6 +275,7 @@ class App(QWidget):
 
                     self.rfid_wait = None
                     self.thread.enable_recognition = False
+
             if self.mode == "A":
 
                 if self.rfid_wait and (now - self.rfid_time > self.rfid_window):
@@ -257,6 +298,12 @@ class App(QWidget):
             self.time_label.setText("THỜI GIAN: --:--:--")
             self.status_label.setText("TRẠNG THÁI: ĐANG CHỜ")
             self.status_label.setStyleSheet("color: black")
+        # ===== Hiển thị MODE =====
+        if self.mode == "A":
+            self.mode_label.setText("Chế độ điểm danh: Thẻ từ")
+
+        elif self.mode == "B":
+            self.mode_label.setText("Chế độ điểm danh: Hàng loạt")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
@@ -266,16 +313,17 @@ class App(QWidget):
         self.thread.stop()
         event.accept()
     def handle_serial(self, data):
+        data = data.strip()
         print("Serial:", data)
 
-        if data == "modeA":
+        if data == "ModeA":
             self.mode = "A"
-            self.thread.enable_recognition = True
+            self.thread.enable_recognition = False
             print("MODE A")
 
-        elif data == "modeB":
+        elif data == "ModeB":
             self.mode = "B"
-            self.thread.enable_recognition = False
+            self.thread.enable_recognition = True
             print("MODE B")
 
         elif data.startswith("rfid:"):
