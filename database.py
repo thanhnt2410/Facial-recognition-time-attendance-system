@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from datetime import datetime
 
 
 class MongoDB:
@@ -11,6 +12,9 @@ class MongoDB:
 
         self.db = self.client["faceid"]
         self.collection = self.db["students"]
+        self.attendances = self.db["attendances"]
+        # chống ghi nhiều lần liên tiếp
+        self.last_attendance = {}
 
     def get_all_embeddings(self):
 
@@ -31,3 +35,25 @@ class MongoDB:
             }
 
         return users
+    def save_attendance(self, idcard):
+
+        now = datetime.utcnow()
+
+        # chống spam (10 giây)
+        if idcard in self.last_attendance:
+
+            diff = (now - self.last_attendance[idcard]).total_seconds()
+
+            if diff < 10:
+                return
+
+        self.last_attendance[idcard] = now
+
+        attendance = {
+            "IDCard": idcard,
+            "timestamps": now
+        }
+
+        self.attendances.insert_one(attendance)
+
+        print("Attendance saved:", attendance)

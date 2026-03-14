@@ -257,6 +257,7 @@ class App(QWidget):
                 if display_name != self.current_name:
                     self.current_name = display_name
                     self.current_detect_time = now
+                    self.thread.engine.db.save_attendance(idcard)
                 else:
                     self.current_detect_time = now
 
@@ -268,6 +269,7 @@ class App(QWidget):
 
                         self.current_name = display_name
                         self.current_detect_time = now
+                        self.thread.engine.db.save_attendance(idcard)
                         print("Attendance success")
 
                     else:
@@ -334,6 +336,16 @@ class App(QWidget):
             self.rfid_time = time.time()
 
             self.thread.enable_recognition = True
+    def save_attendance(self, idcard):
+
+        attendance = {
+            "IDCard": idcard,
+            "time": datetime.utcnow()
+        }
+
+        self.thread.engine.db.attendance_collection.insert_one(attendance)
+
+        print("Attendance saved:", attendance)
 
 
 # ===== Main =====
