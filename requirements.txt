@@ -1,55 +1,37 @@
-absl-py==2.4.0
-astunparse==1.6.3
-certifi==2026.1.4
-charset-normalizer==3.4.4
-coloredlogs==15.0.1
-dnspython==2.8.0
-flatbuffers==25.12.19
-gast==0.7.0
-google-pasta==0.2.0
-grpcio==1.78.0
-h5py==3.15.1
-humanfriendly==10.0
-idna==3.11
-joblib==1.5.3
-keras==3.12.1
-keras-facenet==0.3.2
-libclang==18.1.1
-lz4==4.4.5
-Markdown==3.10.2
-markdown-it-py==4.0.0
-MarkupSafe==3.0.3
-mdurl==0.1.2
-ml_dtypes==0.5.4
-mpmath==1.3.0
-mtcnn==1.0.0
-namex==0.1.0
-numpy==2.2.6
-onnxruntime==1.23.2
+attrs==25.4.0
+av==16.1.0
+coloredlogs @ file:///home/conda/feedstock_root/build_artifacts/coloredlogs_1733927977068/work
+dnspython @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_dnspython_1757292856/work
+flatbuffers @ file:///home/conda/feedstock_root/build_artifacts/python-flatbuffers_1758880282135/work
+gmpy2 @ file:///home/task_176474798167621/conda-bld/gmpy2_1764748030580/work
+humanfriendly @ file:///home/conda/feedstock_root/build_artifacts/humanfriendly_1733927922002/work
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+libarchive-c==5.3
+mpmath @ file:///home/conda/feedstock_root/build_artifacts/mpmath_1771870608577/work
+numpy @ file:///home/task_176157883801079/conda-bld/numpy_and_numpy_base_1761579344233/work/dist/numpy-2.2.5-cp310-cp310-linux_aarch64.whl#sha256=b8668ed10ae0d0ad1e4deabc82cde79431764d8261cde9836c7b399b9ffa066d
+onnxruntime @ file:///home/task_175983618601483/conda-bld/onnxruntime_1759836245452/work/build-ci/Release/dist/onnxruntime-1.22.2-cp310-cp310-linux_aarch64.whl#sha256=070903f348895886d1bc162a4a9983d6222785ceb8c4820a8db16aefa3aeb04a
 opencv-python-headless==4.13.0.92
-opt_einsum==3.4.0
-optree==0.18.0
-packaging==26.0
+OpenEXR==3.4.5
+packaging @ file:///home/task_176104879157968/conda-bld/packaging_1761049080585/work
+picamera2==0.3.34
+pidng==4.0.9
+piexif==1.1.3
 pillow==12.1.1
-protobuf==6.33.5
-Pygments==2.19.2
-pymongo==4.16.0
-PyQt5-Qt5==5.15.2
-PyQt5_sip==12.18.0
-PyQt6==6.10.2
-PyQt6-Qt6==6.10.2
-PyQt6_sip==13.11.0
-requests==2.32.5
-rich==14.3.2
-scipy==1.15.3
-six==1.17.0
-sympy==1.14.0
-tensorboard==2.20.0
-tensorboard-data-server==0.7.2
-tensorflow==2.20.0
-tensorrt-inference-gui==0.0.0
-termcolor==3.3.0
+ply @ file:///home/conda/feedstock_root/build_artifacts/ply_1733239724146/work
+protobuf @ file:///home/task_177066052251985/croot/protobuf_1770660579682/work/bazel-bin/python/dist/protobuf-6.33.5-cp310-abi3-linux_aarch64.whl#sha256=c6c6a0da25cb7e995e9998fdad0050ff8cae4fef3253b14d4b312da61211c7d7
+pymongo @ file:///home/conda/feedstock_root/build_artifacts/pymongo_1768121106732/work
+PyQt6==6.9.1
+PyQt6_sip @ file:///home/task_175751008959871/conda-bld/pyqt-split_1757511023824/work/pyqt_sip
+pyserial==3.5
+python-prctl==1.8.1
+referencing==0.37.0
+rpds-py==0.30.0
+simplejpeg==1.9.0
+sip @ file:///home/conda/feedstock_root/build_artifacts/sip_1755905278423/work
+sniffio @ file:///home/conda/feedstock_root/build_artifacts/sniffio_1762941432086/work
+sympy @ file:///home/conda/feedstock_root/build_artifacts/sympy_1771952240620/work
+tomli @ file:///home/task_176829645458169/croot/tomli_1768296476741/work
+tqdm==4.67.3
 typing_extensions==4.15.0
-urllib3==2.6.3
-Werkzeug==3.1.5
-wrapt==2.1.1
+videodev2==0.0.4
