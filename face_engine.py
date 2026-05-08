@@ -152,3 +152,59 @@ class FaceEngine:
         return frame_small, (
             self.last_names[0] if self.last_names else ""
         )
+
+if __name__ == "__main__":
+
+    import sys
+    from PyQt6.QtWidgets import QApplication, QLabel
+    from PyQt6.QtGui import QImage, QPixmap
+    from PyQt6.QtCore import QTimer
+
+    engine = FaceEngine()
+    cap = cv2.VideoCapture(0)
+
+    app = QApplication(sys.argv)
+    label = QLabel()
+    label.setWindowTitle("Face Recognition")
+    label.resize(640, 480)
+    label.show()
+
+    def update_frame():
+        ret, frame = cap.read()
+        if not ret:
+            return
+
+        frame_out, name = engine.process_frame(frame)
+
+        if name:
+            cv2.putText(
+                frame_out,
+                name,
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+
+        # Convert BGR → RGB
+        frame_rgb = cv2.cvtColor(frame_out, cv2.COLOR_BGR2RGB)
+
+        h, w, ch = frame_rgb.shape
+        bytes_per_line = ch * w
+
+        qt_img = QImage(
+            frame_rgb.data,
+            w,
+            h,
+            bytes_per_line,
+            QImage.Format.Format_RGB888
+        )
+
+        label.setPixmap(QPixmap.fromImage(qt_img))
+
+    timer = QTimer()
+    timer.timeout.connect(update_frame)
+    timer.start(30)
+
+    sys.exit(app.exec())

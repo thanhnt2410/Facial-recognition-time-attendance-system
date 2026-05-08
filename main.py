@@ -15,6 +15,30 @@ from PyQt6.QtGui import QImage, QPixmap, QFont
 from PyQt6.QtCore import Qt
 from face_engine import FaceEngine
 
+# Thêm import ở đầu file
+from create_database_MongoDB import EmbeddingGenerator
+
+MONGO_URI = "mongodb+srv://nguyentuandatntd2k2:Datnguyen37@shop.l7tkp.mongodb.net/faceid"
+
+# ===== Thread chạy reload embedding (không block UI) =====
+class ReloadThread(QThread):
+    done_signal = pyqtSignal()   # báo hiệu hoàn tất
+
+    def __init__(self, generator: EmbeddingGenerator, face_engine):
+        super().__init__()
+        self.generator   = generator
+        self.face_engine = face_engine
+
+    def run(self):
+        # Bước 1: Tạo embedding cho những student chưa có
+        self.generator.generate_embeddings(force=False)
+
+        # Bước 2: Reload lại embedding vào FaceEngine (load từ DB vào RAM)
+        self.face_engine.load_embeddings_from_db()
+
+        self.done_signal.emit()
+
+
 class SerialThread(QThread):
 
     data_signal = pyqtSignal(str)
@@ -122,7 +146,7 @@ class App(QWidget):
         self.current_name = None
         self.current_detect_time = 0
         self.hold_duration = 3
-        self.mode = "A"
+        self.mode = "B"
 
         self.rfid_wait = None
         self.rfid_time = 0
@@ -133,6 +157,11 @@ class App(QWidget):
 
         self.setWindowTitle("Attendance System")
         self.resize(1100, 650)
+        # ⭐ Khởi tạo EmbeddingGenerator
+        self.embedding_generator = EmbeddingGenerator(MONGO_URI)
+
+        # ⭐ Giữ tham chiếu reload thread để tránh bị GC
+        self.reload_thread = None
 
         # ===== GLOBAL STYLE =====
         self.setStyleSheet("""
@@ -208,10 +237,11 @@ class App(QWidget):
 
         # ===== THREAD =====
         self.thread = CameraThread()
-        self.thread.enable_recognition = False
+        self.thread.enable_recognition = True
         self.users = self.thread.engine.db.load_users()
         self.thread.frame_signal.connect(self.update_ui)
         self.thread.start()
+        self._start_reload()
 
     def update_ui(self, frame, name, fps):
         now = time.time()
@@ -336,6 +366,43 @@ class App(QWidget):
             self.rfid_time = time.time()
 
             self.thread.enable_recognition = True
+        # ⭐ Xử lý lệnh reload
+        elif data == "reload":
+            self._start_reload()
+    def _start_reload(self):
+        """Tạo embedding còn thiếu rồi reload vào bộ nhớ, chạy trên thread riêng."""
+        if self.reload_thread and self.reload_thread.isRunning():
+            print("[Reload] Đang reload, bỏ qua yêu cầu mới.")
+            return
+
+        print("[Reload] Bắt đầu tạo embedding và reload...")
+
+        # Tạm dừng nhận diện trong lúc reload để tránh race condition
+        was_recognizing = self.thread.enable_recognition
+        self.thread.enable_recognition = False
+
+        self.status_label.setText("TRẠNG THÁI: ĐANG RELOAD...")
+        self.status_label.setStyleSheet("color: orange")
+
+        self.reload_thread = ReloadThread(
+            self.embedding_generator,
+            self.thread.engine
+        )
+        self.reload_thread.done_signal.connect(
+            lambda: self._on_reload_done(was_recognizing)
+        )
+        self.reload_thread.start()
+
+    def _on_reload_done(self, restore_recognition: bool):
+        """Callback khi reload xong."""
+        self.users = self.thread.engine.db.load_users()   # reload users cache
+        self.thread.enable_recognition = restore_recognition
+
+        total = len(self.thread.engine.known_embeddings)
+        print(f"[Reload] Hoàn tất! Tổng embeddings trong RAM: {total}")
+
+        self.status_label.setText("TRẠNG THÁI: RELOAD XONG ✓")
+        self.status_label.setStyleSheet("color: #00ffcc")
     def save_attendance(self, idcard):
 
         attendance = {
